@@ -1,0 +1,220 @@
+#include <list>
+#include <unordered_map>
+#include <iterator>
+#include <iostream>
+
+namespace ARC
+{
+
+const size_t MIN_SIZE = 4; // ToDo: replace it?
+
+//! https://dbs.uni-leipzig.de/file/ARC.pdf
+template <typename PageT, typename KeyT = int>
+class Cache 
+{
+    typedef typename std::pair <KeyT, PageT> PairT; // ToDo: It's OK?
+    typedef typename std::list <PairT> :: iterator IterT;
+
+    enum class ListType
+    {
+        T1 = 0,
+        T2 = 1,
+        B1 = 2,
+        B2 = 3,
+        NOT_IN_LISTS = 4
+    };
+
+    struct MapT
+    {
+        IterT iter_;
+        ListType list_type_;
+    };
+
+    typedef typename std::unordered_map <KeyT, MapT> :: iterator MapIt;
+
+    std::list <PairT> T1_, T2_, B1_, B2_;
+    std::unordered_map <KeyT, MapT> hash_table_;
+    size_t c_, p_;
+
+    void Replace_P (const MapIt& elem);
+
+    void MoveToOtherList (std::list<PairT>& list_from, MapIt& elem, 
+                          std::list<PairT>& list_to, ListType new_place); 
+    void MoveToOtherList (std::list <PairT>& list_from, MapIt&& elem, 
+                          std::list <PairT>& list_to, ListType new_place);
+    // ToDo: non-const references - is it correct?
+    void DeletePage (const MapIt& elem);
+
+    PairT GetPageFromMemory (const KeyT& page_id); // bad function, crutch
+
+public:
+    Cache (size_t size);
+    bool Request (const KeyT& page_id);
+    ~Cache (); 
+};
+
+template <typename PageT, typename KeyT>
+Cache <PageT, KeyT> :: Cache (size_t size):
+    c_ ((size / 2 < MIN_SIZE) ? MIN_SIZE : (size / 2 + 1)),
+    p_ (0)
+{
+
+}
+
+template <typename PageT, typename KeyT>
+Cache <PageT, KeyT> :: ~Cache()
+{
+    p_ = 0;
+    c_ = 0;
+}
+
+template <typename PageT, typename KeyT>
+bool Cache <PageT, KeyT> :: Request (const KeyT& page_id)
+{
+    MapIt elem = hash_table_.find (page_id);
+
+    if (elem == hash_table_.end())
+    {
+        size_t T1_size = T1_.size();
+        size_t L1_size = T1_size + B1_.size();
+        size_t L2_size = T2_.size() + B2_.size();
+
+        if (L1_size == c_)
+        {
+            if (T1_size < c_)
+            {
+                PairT B1_back = B1_.back();
+                DeletePage (hash_table_.find (B1_back.first)); // key of end B1
+                Replace_P (elem);
+            }
+            else
+            {
+                PairT T1_back = T1_.back();
+                DeletePage (hash_table_.find (T1_back.first)); // key of end T1
+            }
+        }
+
+        else if (L1_size < c_ && L1_size + L2_size >= c_)
+        {
+            if (L1_size + L2_size == 2 * c_)
+            {
+                PairT B2_back = B2_.back();
+                DeletePage (hash_table_.find (B2_back.first)); // key of end B2
+            }
+            Replace_P (elem);
+        }
+
+        T1_.push_front (GetPageFromMemory (page_id));
+        hash_table_.insert ({page_id, {T1_.begin(), ListType :: T1}});
+        return false;
+    }
+
+    switch (elem->second.list_type_)
+    {
+        case ListType :: T1:
+            MoveToOtherList (T1_, elem, T2_, ListType :: T2);
+            break;
+
+        case ListType :: T2:
+            if (elem->second.iter_ == T2_.begin())
+                break;
+
+            MoveToOtherList (T2_, elem, T2_, ListType :: T2);
+            break;
+
+        case ListType :: B1:
+            p_ = std::min (c_, p_ + std::max (B2_.size() / B1_.size(), 1lu));
+            Replace_P (elem);
+            MoveToOtherList (B1_, elem, T2_, ListType :: T2);
+            break;
+
+        case ListType :: B2:
+            p_ = std::max (0lu, p_ - std::max (B1_.size() / B2_.size(), 1lu));
+            Replace_P (elem);
+            MoveToOtherList (B2_, elem, T2_, ListType :: T2);
+            break;    
+
+        case ListType :: NOT_IN_LISTS:
+        default:
+            break;
+    }
+
+    return true;
+}
+
+template <typename PageT, typename KeyT>
+void Cache <PageT, KeyT> :: Replace_P (const MapIt& elem)
+{
+    size_t T1_size = T1_.size();
+
+    if (T1_size >= 1 && ((elem != hash_table_.end() && elem->second.list_type_ == ListType::B2 && T1_size == p_) || T1_size > p_))
+    {
+        PairT T1_back = T1_.back();
+        MoveToOtherList (T1_, hash_table_.find (T1_back.first), B1_, ListType :: B1); // key of end T1
+    }
+    
+    else
+    {
+        PairT T2_back = T2_.back();
+        MoveToOtherList (T2_, hash_table_.find (T2_back.first), B2_, ListType :: B2); // key of end T2
+    }
+}
+
+template <typename PageT, typename KeyT>
+typename std::pair <KeyT, PageT> Cache <PageT, KeyT> :: GetPageFromMemory (const KeyT& page_id) // ToDo: How to use PairT
+{
+    return (PairT) {page_id, static_cast <PageT> (page_id)};
+}
+
+template <typename PageT, typename KeyT>
+void Cache <PageT, KeyT> :: MoveToOtherList (std::list <PairT>& list_from, MapIt& elem, 
+                                             std::list <PairT>& list_to, ListType new_place)
+{
+    list_to.push_front (*(elem->second.iter_));
+    list_from.erase  (elem->second.iter_);
+    elem->second = (MapT) {.iter_ = list_to.begin(), .list_type_ = new_place};
+    return;
+}
+
+template <typename PageT, typename KeyT>
+void Cache <PageT, KeyT> :: MoveToOtherList (std::list <PairT>& list_from, MapIt&& elem, 
+                                             std::list <PairT>& list_to, ListType new_place)
+{
+    MapIt lvalue_elem = elem;
+    MoveToOtherList (list_from, lvalue_elem, list_to, new_place);
+    return;
+}
+
+template <typename PageT, typename KeyT>
+void Cache <PageT, KeyT> :: DeletePage (const MapIt& elem)
+{
+    switch (elem->second.list_type_)
+    {
+        // ToDo: copypaste, maybe define?
+    
+        case ListType :: T1:
+            T1_.erase (elem->second.iter_);
+            break;
+
+        case ListType :: T2:
+            T2_.erase (elem->second.iter_);
+            break;
+
+        case ListType :: B1:
+            B1_.erase (elem->second.iter_);
+            break;
+
+        case ListType :: B2:
+            B2_.erase (elem->second.iter_);
+            break;
+
+        case ListType :: NOT_IN_LISTS:
+        default:
+            break;
+    }
+
+    hash_table_.erase (elem);
+    return;
+}
+
+} // end of namespace ARC

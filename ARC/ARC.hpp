@@ -50,12 +50,13 @@ class Cache
 public:
     Cache (size_t size);
     bool Request (const KeyT& page_id);
+    void PrintInfo();
     ~Cache (); 
 };
 
 template <typename PageT, typename KeyT>
 Cache <PageT, KeyT> :: Cache (size_t size):
-    c_ ((size / 2 < MIN_SIZE) ? MIN_SIZE : (size / 2 + 1)),
+    c_ ((size < MIN_SIZE) ? MIN_SIZE / 2: ((size + 1) / 2)),
     p_ (0)
 {
 
@@ -123,13 +124,13 @@ bool Cache <PageT, KeyT> :: Request (const KeyT& page_id)
             break;
 
         case ListType :: B1:
-            p_ = std::min (c_, p_ + std::max (B2_.size() / B1_.size(), 1lu));
+            p_ = std::min <size_t> (c_, p_ + std::max <size_t> (B2_.size() / B1_.size(), 1lu));
             Replace_P (elem);
             MoveToOtherList (B1_, elem, T2_, ListType :: T2);
             break;
 
         case ListType :: B2:
-            p_ = std::max (0lu, p_ - std::max (B1_.size() / B2_.size(), 1lu));
+            p_ = (size_t) std::max <ssize_t> (0l, (ssize_t) p_ - std::max <size_t> (B1_.size() / B2_.size(), 1lu));
             Replace_P (elem);
             MoveToOtherList (B2_, elem, T2_, ListType :: T2);
             break;    
@@ -163,13 +164,15 @@ void Cache <PageT, KeyT> :: Replace_P (const MapIt& elem)
 template <typename PageT, typename KeyT>
 typename std::pair <KeyT, PageT> Cache <PageT, KeyT> :: GetPageFromMemory (const KeyT& page_id) // ToDo: How to use PairT
 {
-    return (PairT) {page_id, static_cast <PageT> (page_id)};
+    return (PairT) {page_id, static_cast <PageT> (page_id)}; // ToDo: delete PairT?
 }
 
 template <typename PageT, typename KeyT>
 void Cache <PageT, KeyT> :: MoveToOtherList (std::list <PairT>& list_from, MapIt& elem, 
                                              std::list <PairT>& list_to, ListType new_place)
 {
+    // std::cout << "Pushing: " << elem->first << std::endl;
+    // PrintInfo ();
     list_to.push_front (*(elem->second.iter_));
     list_from.erase  (elem->second.iter_);
     elem->second = (MapT) {.iter_ = list_to.begin(), .list_type_ = new_place};
@@ -214,6 +217,26 @@ void Cache <PageT, KeyT> :: DeletePage (const MapIt& elem)
     }
 
     hash_table_.erase (elem);
+    return;
+}
+
+template <typename PageT, typename KeyT>
+void Cache <PageT, KeyT> :: PrintInfo ()
+{
+    // ToDo: copypaste???
+    #define print(list) std::cout << #list " (size = " << list##_.size() << "):\n";             \
+                        for (auto i_elem = list##_.begin(); i_elem != list##_.end(); i_elem++)  \
+                            std::cout << "    ""Key = " << i_elem->first << "\t""Value = " << i_elem->second << std::endl;
+
+    std::cout << "p_ = " << p_ << "\t""c_ = " << c_ << std::endl;
+
+    print (T1);
+    print (T2);
+    print (B1);
+    print (B2);
+    std::cout << std::endl;
+    
+    #undef print
     return;
 }
 

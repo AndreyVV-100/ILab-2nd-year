@@ -5,7 +5,7 @@ int main()
 {
     size_t cache_size = 0;
     scanf ("%zu", &cache_size);
-    ARC::Cache <int> cache {2 * cache_size};
+    ARC::Cache <int> cache {cache_size};
 
     size_t req_num = 0, hits = 0;
     scanf ("%zu", &req_num);

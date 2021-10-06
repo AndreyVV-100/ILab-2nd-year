@@ -6,7 +6,7 @@
 namespace ARC
 {
 
-const size_t MIN_SIZE = 4; // ToDo: replace it?
+const size_t MIN_SIZE = 1; // ToDo: replace it? Do it bigger?
 
 //! https://dbs.uni-leipzig.de/file/ARC.pdf
 template <typename PageT, typename KeyT = int>
@@ -38,13 +38,13 @@ class Cache
 
     void Replace_P (const MapIt& elem);
 
+    // ToDo: non-const references - is it correct?
     void MoveToOtherList (std::list<PairT>& list_from, MapIt& elem, 
                           std::list<PairT>& list_to, ListType new_place); 
     void MoveToOtherList (std::list <PairT>& list_from, MapIt&& elem, 
                           std::list <PairT>& list_to, ListType new_place);
-    // ToDo: non-const references - is it correct?
+    
     void DeletePage (const MapIt& elem);
-
     PairT GetPageFromMemory (const KeyT& page_id); // bad function, crutch
 
 public:
@@ -56,7 +56,7 @@ public:
 
 template <typename PageT, typename KeyT>
 Cache <PageT, KeyT> :: Cache (size_t size):
-    c_ ((size < MIN_SIZE) ? MIN_SIZE / 2: ((size + 1) / 2)),
+    c_ ((size < MIN_SIZE) ? MIN_SIZE : size), // ToDo: size of cache == c_ or 2 * c_ ?
     p_ (0)
 {
 
@@ -84,24 +84,18 @@ bool Cache <PageT, KeyT> :: Request (const KeyT& page_id)
         {
             if (T1_size < c_)
             {
-                PairT B1_back = B1_.back();
-                DeletePage (hash_table_.find (B1_back.first)); // key of end B1
+                DeletePage (hash_table_.find (std::prev (B1_.end())->first)); // key of end B1
                 Replace_P (elem);
             }
             else
-            {
-                PairT T1_back = T1_.back();
-                DeletePage (hash_table_.find (T1_back.first)); // key of end T1
-            }
+                DeletePage (hash_table_.find (std::prev (T1_.end())->first)); // key of end T1
         }
 
         else if (L1_size < c_ && L1_size + L2_size >= c_)
         {
             if (L1_size + L2_size == 2 * c_)
-            {
-                PairT B2_back = B2_.back();
-                DeletePage (hash_table_.find (B2_back.first)); // key of end B2
-            }
+                DeletePage (hash_table_.find (std::prev (B2_.end())->first)); // key of end B2
+                
             Replace_P (elem);
         }
 
@@ -149,22 +143,16 @@ void Cache <PageT, KeyT> :: Replace_P (const MapIt& elem)
     size_t T1_size = T1_.size();
 
     if (T1_size >= 1 && ((elem != hash_table_.end() && elem->second.list_type_ == ListType::B2 && T1_size == p_) || T1_size > p_))
-    {
-        PairT T1_back = T1_.back();
-        MoveToOtherList (T1_, hash_table_.find (T1_back.first), B1_, ListType :: B1); // key of end T1
-    }
+        MoveToOtherList (T1_, hash_table_.find (std::prev (T1_.end())->first), B1_, ListType :: B1); // key of end T1
     
     else
-    {
-        PairT T2_back = T2_.back();
-        MoveToOtherList (T2_, hash_table_.find (T2_back.first), B2_, ListType :: B2); // key of end T2
-    }
+        MoveToOtherList (T2_, hash_table_.find (std::prev (T2_.end())->first), B2_, ListType :: B2); // key of end T2
 }
 
 template <typename PageT, typename KeyT>
 typename std::pair <KeyT, PageT> Cache <PageT, KeyT> :: GetPageFromMemory (const KeyT& page_id) // ToDo: How to use PairT
 {
-    return (PairT) {page_id, static_cast <PageT> (page_id)}; // ToDo: delete PairT?
+    return {page_id, static_cast <PageT> (page_id)};
 }
 
 template <typename PageT, typename KeyT>
@@ -175,7 +163,7 @@ void Cache <PageT, KeyT> :: MoveToOtherList (std::list <PairT>& list_from, MapIt
     // PrintInfo ();
     list_to.push_front (*(elem->second.iter_));
     list_from.erase  (elem->second.iter_);
-    elem->second = (MapT) {.iter_ = list_to.begin(), .list_type_ = new_place};
+    elem->second = {list_to.begin(), new_place};
     return;
 }
 
@@ -223,7 +211,6 @@ void Cache <PageT, KeyT> :: DeletePage (const MapIt& elem)
 template <typename PageT, typename KeyT>
 void Cache <PageT, KeyT> :: PrintInfo ()
 {
-    // ToDo: copypaste???
     #define print(list) std::cout << #list " (size = " << list##_.size() << "):\n";             \
                         for (auto i_elem = list##_.begin(); i_elem != list##_.end(); i_elem++)  \
                             std::cout << "    ""Key = " << i_elem->first << "\t""Value = " << i_elem->second << std::endl;

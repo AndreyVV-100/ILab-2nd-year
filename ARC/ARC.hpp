@@ -7,7 +7,7 @@
 namespace ARC
 {
 
-const size_t MIN_CACHE_SIZE = 10;
+const size_t MIN_CACHE_SIZE = 2;
 
 //! https://dbs.uni-leipzig.de/file/ARC.pdf
 template <typename PageT, typename KeyT = int>

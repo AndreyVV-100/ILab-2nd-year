@@ -1,5 +1,7 @@
 #pragma once
 #include <cmath>
+#include <vector>
+#include <set>
 
 namespace geo
 {
@@ -13,7 +15,7 @@ namespace geo
                z_ = NAN;
         double len_ = NAN; // Warning: len - optimization, you should sure, that vector wasn't changed!
 
-        // Vector () = default;
+        Vector() = default;
         Vector (double x, double y, double z);
         bool CheckCorrect() const;
         bool CheckZero()    const;
@@ -26,6 +28,8 @@ namespace geo
         double operator^ (const Vector& a) const; // scalar multiplication
         Vector operator* (double num) const;
     };
+
+    const Vector EPS_Vec = {EPS, EPS, EPS};
 
     Vector operator* (double num, const Vector& a);
 
@@ -41,11 +45,11 @@ namespace geo
     };
     
 
-    class Triangle
+    struct Triangle
     {
         Vector A_, B_, C_, n_; // normal vector for check intersections
 
-        public:
+        private: 
 
         enum TrStat
         {
@@ -57,6 +61,8 @@ namespace geo
         
         TrStat status = INCORRECT;
         TrStat GetStatus() const;
+
+        public:
 
         // Triangle() = default;
         Triangle (const Vector& A, const Vector& B , const Vector& C);
@@ -72,6 +78,37 @@ namespace geo
         bool CheckIntersect (const Triangle& tr) const;
         bool CheckIntersect (const Section& sec) const;
         bool CheckIntersect (const Vector& vec)  const;
+    };
+
+    class Area
+    {
+        public: using SaveT = typename std::pair <size_t, Triangle>;
+
+        private:
+
+        enum Coords
+        {
+            X = 1,
+            Y = 2,
+            Z = 4
+        };
+        using TrIt = typename std::vector <SaveT> :: iterator;
+
+        Vector max_point_;
+        Vector min_point_;
+        std::vector <Area> areas_;
+        std::vector <TrIt> trs_;
+        
+        public:
+
+        Area (const Vector& max, const Vector& min, int need_deep);
+
+        void AddTriangle (TrIt tr_it);
+        void IntersectTriangles (std::set <size_t>& intersect_set);
+        void IntersectOneTriangle (TrIt tr_it, std::set <size_t>& intersect_set);
+        int GetVectorIndex (const Vector& vec) const;
+
+        void PrintLog (size_t deep) const;
     };
 
     bool IsZero (double num);

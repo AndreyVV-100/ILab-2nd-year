@@ -27,6 +27,7 @@ bool Vector :: CheckZero() const
 void Vector :: Print() const
 {
     std::cout << "{" << x_ << ", " << y_ << ", " << z_ << "}";
+    return;
 }
 
 double Vector :: Len()
@@ -230,6 +231,7 @@ void Triangle :: Print() const
     std::cout << ", ";
     C_.Print();
     std::cout << "}\n";
+    return;
 }
 
 bool Section :: CheckIntersect (const Section& sec) const
@@ -287,6 +289,105 @@ bool Section :: CheckIntersect (const Vector& vec) const
         return rA.y_ * rB.y_ < 0;
         
     return rA.z_ * rB.z_ < 0;
+}
+
+Area :: Area (const Vector& max, const Vector& min, int need_deep):
+    max_point_ (max),
+    min_point_ (min)
+{
+    if (need_deep)
+    {
+        for (int i_area = 0; i_area < 8; i_area++)
+        {
+            Vector mid = (max + min) * 0.5;
+            Vector max_now ((i_area & X) ? max.x_ : mid.x_, 
+                            (i_area & Y) ? max.y_ : mid.y_,
+                            (i_area & Z) ? max.z_ : mid.z_),
+                              
+                   min_now ((i_area & X) ? mid.x_ : min.x_,
+                            (i_area & Y) ? mid.y_ : min.y_,
+                            (i_area & Z) ? mid.z_ : min.z_);
+
+            areas_.push_back ((Area) {max_now, min_now, need_deep - 1});
+        }
+    }
+}
+
+void Area :: AddTriangle (TrIt tr_it)
+{
+    int A_ind = GetVectorIndex (tr_it->second.A_);
+    int B_ind = GetVectorIndex (tr_it->second.B_);
+    int C_ind = GetVectorIndex (tr_it->second.C_);
+
+    if (A_ind == B_ind && A_ind == C_ind && areas_.size() > 0)
+    {
+        areas_[A_ind].AddTriangle (tr_it);
+        return;
+    }
+
+    trs_.push_back (tr_it);
+    return;
+}
+
+void Area :: IntersectTriangles (std::set <size_t>& intersect_set)
+{
+    for (auto i_tr = trs_.begin(); i_tr != trs_.end(); i_tr++)
+    {
+        for (auto j_tr = i_tr + 1; j_tr != trs_.end(); j_tr++)
+        {
+            if ((*i_tr)->second.CheckGeneralIntersect ((*j_tr)->second))
+            {
+                intersect_set.insert ((*i_tr)->first);
+                intersect_set.insert ((*j_tr)->first);
+            }
+        }
+
+        for (auto i_area = areas_.begin(); i_area != areas_.end(); i_area++)
+            i_area->IntersectOneTriangle (*i_tr, intersect_set);
+    }
+
+    for (auto i_area = areas_.begin(); i_area != areas_.end(); i_area++)
+        i_area->IntersectTriangles (intersect_set);
+        
+    return;
+}
+
+void Area :: IntersectOneTriangle (TrIt tr_it, std::set <size_t>& intersect_set)
+{
+    for (auto i_tr = trs_.begin(); i_tr != trs_.end(); i_tr++)
+    {
+        if (tr_it->second.CheckGeneralIntersect ((*i_tr)->second))
+        {
+            intersect_set.insert ( tr_it->first);
+            intersect_set.insert ((*i_tr)->first);
+        }
+    }
+
+    for (auto i_area = areas_.begin(); i_area != areas_.end(); i_area++)
+        i_area->IntersectOneTriangle (tr_it, intersect_set);
+    return;
+}
+
+int Area :: GetVectorIndex (const Vector& vec) const
+{
+    int ret = 0;
+    Vector mid = (max_point_ + min_point_) * 0.5;
+
+    ret |= (vec.x_ >= mid.x_) * X;
+    ret |= (vec.y_ >= mid.y_) * Y;
+    ret |= (vec.z_ >= mid.z_) * Z;
+    return ret;
+}
+
+void Area :: PrintLog (size_t deep) const
+{
+    std::cout << "Area (" << deep << "):\n";
+    for (auto i_tr: trs_)
+        i_tr->second.Print();
+
+    std::cout << std::endl;
+    for (auto i_area: areas_)
+        i_area.PrintLog (deep + 1);
 }
 
 bool IsZero (double num) // ToDo: overloading

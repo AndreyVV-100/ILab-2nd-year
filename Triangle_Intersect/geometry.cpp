@@ -32,7 +32,7 @@ void StartIntersect()
 
     geo::Area area {area_max + geo::EPS_Vec,
                     area_min - geo::EPS_Vec, 
-                    static_cast<int> (log2 (static_cast <double> (N)) / 3) + 1};
+                    static_cast<int> (log2 (static_cast <double> (N)) / 3)};
 
     for (auto i_tr = trs.begin(); i_tr != trs.end(); i_tr++)
         area.AddTriangle (i_tr);
@@ -68,34 +68,47 @@ bool Section :: CheckIntersect (const Section& sec) const
            a2 = sec.B_ - sec.A_; // direct vectors
     Vector n = a1 * a2;
 
-    // Here was magic. If you would understand it, try to solve alpha * a1 + B*a2 = r2 - r1
+    // Here was magic. If you would understand it, try to solve: alpha * a1 + beta * a2 = r2 - r1
+    // Solving of equation is easy in matrix by Cramer's rule.
+
     if (n.CheckZero())
         return CheckIntersect (sec.A_) || CheckIntersect (sec.B_);
 
-    Vector mnpn = sec.A_ - A_; // mne_nadoelo_pridumivat_names
+    Vector r2_r1  = sec.A_ - A_, // it's r2 - r1
+           det_a1 = r2_r1 * a2,
+           det_a2 = a1 * r2_r1;
+
+    double alpha = NAN, beta = NAN;
 
     // ToDo: delete copypaste
-    // Counting determinants
     if (!IsZero (n.z_))
     {
-        double alpha = (mnpn.x_ * a2.y_ - mnpn.y_ * a2.x_) / n.z_,
-               beta  = (mnpn.y_ * a1.x_ - mnpn.x_ * a1.y_) / n.z_;
+        alpha = det_a1.z_ / n.z_;
+        beta  = det_a2.z_ / n.z_;
 
-        return alpha * a1.z_ + beta * a2.z_ == mnpn.z_ && In_m1_1 (alpha) && In_m1_1 (beta);
+        if (!IsZero (alpha * a1.z_ + beta * a2.z_ - r2_r1.z_))
+            return false;
     }
 
-    if (!IsZero (n.x_))
+    else if (!IsZero (n.x_))
     {
-        double alpha = (mnpn.y_ * a2.z_ - mnpn.z_ * a2.y_) / n.x_,
-               beta  = (mnpn.z_ * a1.y_ - mnpn.y_ * a1.z_) / n.x_;
+        alpha = det_a1.x_ / n.x_;
+        beta  = det_a2.x_ / n.x_;
 
-        return alpha * a1.x_ + beta * a2.x_ == mnpn.x_ && In_m1_1 (alpha) && In_m1_1 (beta);
+        if (!IsZero (alpha * a1.x_ + beta * a2.x_ - r2_r1.x_))
+            return false;
     }
 
-    double alpha = (mnpn.x_ * a2.z_ - mnpn.z_ * a2.x_) / n.y_,
-           beta  = (mnpn.z_ * a1.x_ - mnpn.x_ * a1.z_) / n.y_;
+    else
+    {
+        alpha = det_a1.y_ / n.y_;
+        beta  = det_a2.y_ / n.y_;
+        
+        if (!IsZero (alpha * a1.y_ + beta * a2.y_ - r2_r1.y_))
+            return false;
+    }
 
-    return alpha * a1.y_ + beta * a2.y_ == mnpn.y_ && In_m1_1 (alpha) && In_m1_1 (beta);
+    return In0_1 (alpha) && In0_1 (-beta);
 }
 
 bool Section :: CheckIntersect (const Vector& vec) const
@@ -201,8 +214,9 @@ bool Triangle :: CheckGeneralIntersect (const Triangle& tr) const
         case NORMAL:
             return CheckIntersect (tr);
         
+        // ToDo: static_cast <Section>?
         case SECTION:
-            return (Section) {A_, C_}.CheckIntersect ((Section) {tr.A_, tr.C_});
+            return (Section) {A_, C_}.CheckIntersect ({tr.A_, tr.C_});
 
         case POINT:
             return A_ == tr.A_;
@@ -218,17 +232,17 @@ bool Triangle :: CheckGeneralIntersect (const Triangle& tr) const
 bool Triangle :: CheckIntersect (const Triangle& tr) const
 {
     if (tr.status == SECTION)
-        return CheckIntersect ((Section) {tr.A_, tr.B_});
+        return CheckIntersect ({tr.A_, tr.B_});
 
     if (tr.status == POINT)
         return CheckIntersect (tr.A_);
 
-    return CheckIntersect ((Section) {tr.A_, tr.B_}) ||
-           CheckIntersect ((Section) {tr.B_, tr.C_}) ||
-           CheckIntersect ((Section) {tr.A_, tr.C_}) ||
-        tr.CheckIntersect ((Section) {   A_,    B_}) ||
-        tr.CheckIntersect ((Section) {   B_,    C_}) ||
-        tr.CheckIntersect ((Section) {   A_,    C_});
+    return CheckIntersect ({tr.A_, tr.B_}) ||
+           CheckIntersect ({tr.B_, tr.C_}) ||
+           CheckIntersect ({tr.A_, tr.C_}) ||
+        tr.CheckIntersect ({   A_,    B_}) ||
+        tr.CheckIntersect ({   B_,    C_}) ||
+        tr.CheckIntersect ({   A_,    C_});
 }
 
 bool Triangle :: CheckIntersect (const Section& sec) const
@@ -398,11 +412,6 @@ bool IsZero (double num) // ToDo: overloading
 bool In0_1 (double num) // useful for parametric equations
 {
     return -EPS <= num && num <= 1 + EPS; 
-}
-
-bool In_m1_1 (double num)
-{
-    return -1 - EPS <= num && num <= 1 + EPS; 
 }
 
 double MaxOrNonNAN (double val1, double val2)

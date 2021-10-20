@@ -2,10 +2,20 @@
 #include <cmath>
 #include <vector>
 #include <set>
+#include <iostream>
 
 namespace geo
 {
     const double EPS = 1e-5; // precision of calculations
+
+    void StartIntersect(); // main function
+
+    bool IsZero (double num);
+    bool In0_1  (double num);
+    bool In_m1_1 (double num);
+
+    double MaxOrNonNAN (double val1, double val2);
+    double MinOrNonNAN (double val1, double val2);
 
     // point is equivalent to vector
     struct Vector
@@ -16,40 +26,112 @@ namespace geo
         double len_ = NAN; // Warning: len - optimization, you should sure, that vector wasn't changed!
 
         Vector() = default;
-        Vector (double x, double y, double z);
-        bool CheckCorrect() const;
-        bool CheckZero()    const;
-        void Print()  const;
+        Vector (double x, double y, double z):
+            x_ (x),
+            y_ (y),
+            z_ (z),
+            len_ (Len())
+        { }
+
+        bool CheckCorrect() const
+        {
+            using std::isfinite;
+            return isfinite (x_) && isfinite (y_) && isfinite (z_); 
+        }
+
+        bool CheckZero() const
+        {
+            return IsZero (x_) && IsZero (y_) && IsZero (z_);
+        }
         
-        double Len();
-        Vector operator+ (const Vector& a) const;
-        Vector operator- (const Vector& a) const;
-        Vector operator* (const Vector& a) const; // vector multiplication
-        double operator^ (const Vector& a) const; // scalar multiplication
-        Vector operator* (double num) const;
+        double Len()
+        {
+            return len_ = std::sqrt (x_*x_ + y_*y_ + z_*z_);
+        }
+
+        Vector operator+ (const Vector& a) const
+        {
+            return {x_ + a.x_, y_ + a.y_, z_ + a.z_};
+        }
+
+        Vector operator- (const Vector& a) const
+        {
+            return {x_ - a.x_, y_ - a.y_, z_ - a.z_};
+        }
+
+        Vector operator* (const Vector& a) const // vector multiplication
+        {
+            return {y_ * a.z_ - z_ * a.y_, 
+                    z_ * a.x_ - x_ * a.z_, 
+                    x_ * a.y_ - y_ * a.x_};
+        }
+
+        double operator^ (const Vector& a) const // scalar multiplication
+        {
+            return x_ * a.x_ + y_ * a.y_ + z_ * a.z_;
+        }
+
+        Vector operator* (double num) const
+        {
+            return {num * x_, num * y_, num * z_};
+        }
+
+        bool operator== (const Vector& a) const
+        {
+            return (*this - a).CheckZero();
+        }
+
+        bool operator!= (const Vector& a) const
+        {
+            return !(*this - a).CheckZero();
+        }
+
+        bool operator|| (const Vector& a) const // Is collinear?
+        {
+            return (*this * a).CheckZero();
+        }
+
+        // ToDo: It's already copypaste?
+
+        void Maximize (const Vector& vec)
+        {
+            x_ = MaxOrNonNAN (x_, vec.x_);
+            y_ = MaxOrNonNAN (y_, vec.y_);
+            z_ = MaxOrNonNAN (z_, vec.z_);
+        }
+
+        void Minimize (const Vector& vec)
+        {
+            x_ = MinOrNonNAN (x_, vec.x_);
+            y_ = MinOrNonNAN (y_, vec.y_);
+            z_ = MinOrNonNAN (z_, vec.z_);
+        }
     };
 
     const Vector EPS_Vec = {EPS, EPS, EPS};
 
     Vector operator* (double num, const Vector& a);
-
-    bool CheckCollinear (const Vector& a, const Vector& b);
+    std::ostream& operator<< (std::ostream& out, const Vector& vec);
+    std::istream& operator>> (std::istream& in, Vector& vec);
 
     struct Section
     {
         Vector A_, B_;
-        Section (const Vector& A, const Vector& B);
+        Section (const Vector& A, const Vector& B):
+            A_ (A),
+            B_ (B)
+        { }
 
         bool CheckIntersect (const Section& sec) const;
         bool CheckIntersect (const Vector& vec)  const;
     };
-    
 
-    struct Triangle
+    std::ostream& operator<< (std::ostream& out, const Section& vec);
+    std::istream& operator>> (std::istream& in, Section& vec);
+
+    class Triangle
     {
         Vector A_, B_, C_, n_; // normal vector for check intersections
-
-        private: 
 
         enum TrStat
         {
@@ -64,13 +146,25 @@ namespace geo
 
         public:
 
-        // Triangle() = default;
+        Triangle() = default;
         Triangle (const Vector& A, const Vector& B , const Vector& C);
+        void UpdateDate(); // is equivalent to a part of ctor 
         void SortVertexes(); // Correct only if status == SECTION, after function AC --- largest section 
-        bool CheckCorrect() const;
+        
+        bool CheckCorrect() const
+        {
+            return A_.CheckCorrect() && B_.CheckCorrect() && C_.CheckCorrect();
+        }
 
         bool CheckGeneralIntersect (const Triangle& tr) const;
-        void Print() const;
+
+        friend std::ostream& operator<< (std::ostream& out, const Triangle& tr);
+        friend std::istream& operator>> (std::istream& in, Triangle& tr);
+
+        // ToDo: copypaste?
+        const Vector& GetA() const {return A_;}
+        const Vector& GetB() const {return B_;}
+        const Vector& GetC() const {return C_;}
 
         private:
 
@@ -79,6 +173,9 @@ namespace geo
         bool CheckIntersect (const Section& sec) const;
         bool CheckIntersect (const Vector& vec)  const;
     };
+
+    // std::ostream& operator<< (std::ostream& out, const Triangle& tr);
+    // std::istream& operator>> (std::istream& in, Triangle& tr);
 
     class Area
     {
@@ -110,9 +207,4 @@ namespace geo
 
         void PrintLog (size_t deep) const;
     };
-
-    bool IsZero (double num);
-    bool In0_1  (double num);
-    bool In_m1_1 (double num);
-    
 } // end of namespace geo

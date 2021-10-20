@@ -2,7 +2,7 @@
 
 # script path, copypasted from internet
 BASEDIR=$(dirname $(realpath "$0"))
-NUM_TESTS=$((11))
+NUM_TESTS=$((17))
 
 for ((i_test=1; i_test <= NUM_TESTS; i_test++))
 do

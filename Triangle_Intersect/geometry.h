@@ -162,9 +162,9 @@ namespace geo
         friend std::istream& operator>> (std::istream& in, Triangle& tr);
 
         // ToDo: copypaste?
-        const Vector& GetA() const {return A_;}
-        const Vector& GetB() const {return B_;}
-        const Vector& GetC() const {return C_;}
+        const Vector& GetA() const& {return A_;}
+        const Vector& GetB() const& {return B_;}
+        const Vector& GetC() const& {return C_;}
 
         private:
 

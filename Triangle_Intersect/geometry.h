@@ -3,12 +3,11 @@
 #include <vector>
 #include <set>
 #include <iostream>
+#include <cassert>
 
 namespace geo
 {
     const double EPS = 1e-5; // precision of calculations
-
-    void StartIntersect(); // main function
 
     bool IsZero (double num);
     bool In0_1  (double num);
@@ -76,6 +75,22 @@ namespace geo
             return {num * x_, num * y_, num * z_};
         }
 
+        double& operator[] (int n) &
+        {
+            n = ((n % 3) + 3) % 3;
+            
+            switch (n)
+            {
+                case 0:
+                    return x_;
+                case 1:
+                    return y_;
+                case 2:
+                    return z_;
+            }
+            assert (false);
+        }
+
         bool operator== (const Vector& a) const
         {
             return (*this - a).CheckZero();
@@ -86,12 +101,10 @@ namespace geo
             return !(*this - a).CheckZero();
         }
 
-        bool operator|| (const Vector& a) const // Is collinear?
+        bool CheckCollinear (const Vector& a) const // Is collinear?
         {
             return (*this * a).CheckZero();
         }
-
-        // ToDo: It's already copypaste?
 
         void Maximize (const Vector& vec)
         {
@@ -146,9 +159,26 @@ namespace geo
 
         public:
 
-        Triangle() = default;
-        Triangle (const Vector& A, const Vector& B , const Vector& C);
-        void UpdateDate(); // is equivalent to a part of ctor 
+        // Triangle() = default;
+        Triangle (const Vector& A, const Vector& B, const Vector& C):
+            A_ (A),
+            B_ (B),
+            C_ (C),
+            n_ ((A - B) * (A - C)),
+            status (GetStatus())
+        {
+            if (status == SECTION)
+                SortVertexes();
+        }
+
+        void UpdateDate()
+        {
+            n_ = (A_ - B_) * (A_ - C_);
+            status = GetStatus();
+            if (status == SECTION)
+                SortVertexes();
+        } 
+
         void SortVertexes(); // Correct only if status == SECTION, after function AC --- largest section 
         
         bool CheckCorrect() const
@@ -161,7 +191,6 @@ namespace geo
         friend std::ostream& operator<< (std::ostream& out, const Triangle& tr);
         friend std::istream& operator>> (std::istream& in, Triangle& tr);
 
-        // ToDo: copypaste?
         const Vector& GetA() const& {return A_;}
         const Vector& GetB() const& {return B_;}
         const Vector& GetC() const& {return C_;}

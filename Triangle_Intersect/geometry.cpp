@@ -3,47 +3,6 @@
 namespace geo
 {
 
-void StartIntersect()
-{
-    std::set <size_t> intersect_set;
-
-    size_t N = 0;
-    std::cin >> N;
-    if (!N)
-        return;
-
-    std::vector <geo :: Area :: SaveT> trs;
-    geo::Vector area_max, area_min;
-
-    for (size_t i_elem = 0; i_elem < N; i_elem++)
-    {
-        Vector tr_vecs[3] = {};
-
-        for (int j_point = 0; j_point < 3; j_point++)
-        {
-            std::cin >> tr_vecs[j_point];
-
-            area_max.Maximize (tr_vecs[j_point]);
-            area_min.Minimize (tr_vecs[j_point]);
-        }
-
-        trs.push_back ({i_elem, {tr_vecs[0], tr_vecs[1], tr_vecs[2]}});
-    }
-
-    geo::Area area {area_max + geo::EPS_Vec,
-                    area_min - geo::EPS_Vec, 
-                    static_cast<int> (log2 (static_cast <double> (N)) / 3)};
-
-    for (auto i_tr = trs.begin(); i_tr != trs.end(); i_tr++)
-        area.AddTriangle (i_tr);
-
-    // area.PrintLog (0);
-    area.IntersectTriangles(intersect_set);
-    
-    for (auto i_elem: intersect_set)
-        std::cout << i_elem << std::endl;
-}
-
 Vector operator* (double num, const Vector& a)
 {
     return a * num;
@@ -80,34 +39,18 @@ bool Section :: CheckIntersect (const Section& sec) const
 
     double alpha = NAN, beta = NAN;
 
-    // ToDo: delete copypaste
-    if (!IsZero (n.z_))
+    for (int i_coord = 0; i_coord < 3; i_coord++)
     {
-        alpha = det_a1.z_ / n.z_;
-        beta  = det_a2.z_ / n.z_;
+        if (!IsZero (n[i_coord]))
+        {
+            alpha = det_a1[i_coord] / n[i_coord];
+            beta  = det_a2[i_coord] / n[i_coord];
 
-        if (!IsZero (alpha * a1.z_ + beta * a2.z_ - r2_r1.z_))
-            return false;
+            if (!IsZero (alpha * a1[i_coord] + beta * a2[i_coord] - r2_r1[i_coord]))
+                return false;
+            break;
+        }
     }
-
-    else if (!IsZero (n.x_))
-    {
-        alpha = det_a1.x_ / n.x_;
-        beta  = det_a2.x_ / n.x_;
-
-        if (!IsZero (alpha * a1.x_ + beta * a2.x_ - r2_r1.x_))
-            return false;
-    }
-
-    else
-    {
-        alpha = det_a1.y_ / n.y_;
-        beta  = det_a2.y_ / n.y_;
-        
-        if (!IsZero (alpha * a1.y_ + beta * a2.y_ - r2_r1.y_))
-            return false;
-    }
-
     return In0_1 (alpha) && In0_1 (-beta);
 }
 
@@ -119,7 +62,7 @@ bool Section :: CheckIntersect (const Vector& vec) const
     if (rA.CheckZero() || rB.CheckZero())
         return true;
 
-    if (!(rB || rA)) // In one line?
+    if (!(rB.CheckCollinear (rA))) // In one line?
         return false;
 
     // rA == -t rB ?
@@ -142,25 +85,6 @@ std::istream& operator>> (std::istream& in, Section& sec)
 {
     in >> sec.A_ >> sec.B_;
     return in;
-}
-
-Triangle :: Triangle (const Vector& A, const Vector& B, const Vector& C):
-    A_ (A),
-    B_ (B),
-    C_ (C),
-    n_ ((A - B) * (A - C)),
-    status (GetStatus()) // ToDo: Is it correct?
-{
-    if (status == SECTION)
-        SortVertexes();
-}
-
-void Triangle :: UpdateDate()
-{
-    n_ = (A_ - B_) * (A_ - C_);
-    status = GetStatus();
-    if (status == SECTION)
-        SortVertexes();
 }
 
 Triangle :: TrStat Triangle :: GetStatus () const
@@ -213,10 +137,9 @@ bool Triangle :: CheckGeneralIntersect (const Triangle& tr) const
     {
         case NORMAL:
             return CheckIntersect (tr);
-        
-        // ToDo: static_cast <Section>?
+
         case SECTION:
-            return (Section) {A_, C_}.CheckIntersect ({tr.A_, tr.C_});
+            return Section {A_, C_}.CheckIntersect ({tr.A_, tr.C_});
 
         case POINT:
             return A_ == tr.A_;
@@ -277,7 +200,7 @@ bool Triangle :: CheckIntersect (const Section& sec) const
 
 bool Triangle :: CheckIntersect (const Vector& vec) const
 {
-    // sum of angels = 2 pi
+    // sum of angles = 2 pi
     Vector A = A_ - vec,
            B = B_ - vec,
            C = C_ - vec; 
@@ -404,7 +327,7 @@ void Area :: PrintLog (size_t deep) const
         i_area.PrintLog (deep + 1);
 }
 
-bool IsZero (double num) // ToDo: overloading
+bool IsZero (double num)
 {
     return std::abs (num) < EPS;
 }

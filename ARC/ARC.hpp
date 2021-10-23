@@ -187,7 +187,7 @@ void Cache <PageT, KeyT> :: DeletePage (const MapIt& elem)
 }
 
 template <typename PageT, typename KeyT>
-typename std::pair <KeyT, PageT> Cache <PageT, KeyT> :: GetPageFromMemory (const KeyT& page_id) const // ToDo: How to use PairT
+typename Cache <PageT, KeyT> :: PairT Cache <PageT, KeyT> :: GetPageFromMemory (const KeyT& page_id) const 
 {
     return {page_id, static_cast <PageT> (page_id)};
 }

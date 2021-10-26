@@ -35,7 +35,7 @@ class Cache
 
     ListT T1_, T2_, B1_, B2_;
     std::unordered_map <KeyT, MapT> hash_table_;
-    size_t c_, p_;
+    size_t c_, p_ = 0;
     
     void InsertPage (const KeyT&  page_id);
     void  AdaptPage (MapIt& elem);
@@ -49,32 +49,20 @@ class Cache
 
     void Replace_P (const MapIt& elem);
 
-    // print functions
-
     void PrintList (const ListT& list, const std::string& list_name) const;
-    // void PrintUnorderedMap() const; --- is it necessary?
 
     public:
 
     Cache (size_t size);
     bool Request (const KeyT& page_id);
     void PrintInfo() const;
-    ~Cache (); 
 };
 
 template <typename PageT, typename KeyT>
 Cache <PageT, KeyT> :: Cache (size_t size):
     c_ ((size < MIN_CACHE_SIZE) ? MIN_CACHE_SIZE / 2 : (size + 1) / 2),
     p_ (0)
-{
-
-}
-
-template <typename PageT, typename KeyT>
-Cache <PageT, KeyT> :: ~Cache()
-{
-    // Nothing here
-}
+{ }
 
 template <typename PageT, typename KeyT>
 bool Cache <PageT, KeyT> :: Request (const KeyT& page_id)
@@ -145,7 +133,8 @@ void Cache <PageT, KeyT> :: AdaptPage (MapIt& elem)
             return;
 
         case ListType :: B2:
-            p_ = (size_t) std::max <ssize_t> (0l, (ssize_t) p_ - std::max <size_t> (B1_.size() / B2_.size(), 1lu));
+            p_ = static_cast <size_t> (std::max <ssize_t> (0l, static_cast <ssize_t> (p_) - 
+                 std::max <size_t> (B1_.size() / B2_.size(), 1lu)));
             Replace_P (elem);
             MoveToOtherList (B2_, elem, T2_, ListType :: T2);
             return;    
@@ -196,8 +185,6 @@ template <typename PageT, typename KeyT>
 void Cache <PageT, KeyT> :: MoveToOtherList (ListT& list_from, MapIt& elem, 
                                              ListT& list_to, const ListType new_place)
 {
-    // std::cout << "Pushing: " << elem->first << std::endl;
-    // PrintInfo ();
     list_to.push_front (*(elem->second.iter_));
     list_from.erase  (elem->second.iter_);
     elem->second = {list_to.begin(), new_place};

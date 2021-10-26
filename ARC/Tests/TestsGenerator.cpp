@@ -3,7 +3,7 @@
 #include <ctime>
 
 const size_t BUF_SIZE = 256;
-const size_t NUM_REQUESTS = 100000;
+const size_t NUM_REQUESTS = 10000000;
 
 // first name = atoi (argv[1]).task, argv[2] - amount of tests
 // argv[3] - sizeof(cache), argv[4] - number of pages
@@ -22,7 +22,7 @@ int main (int argc, char** argv) // ToDo: getopt
         num_pages  = atoi (argv[4]); // <= 2147483647
 
     char  buf_in[BUF_SIZE] = "";
-    char buf_out[BUF_SIZE] = "";
+    char buf_out[2 * BUF_SIZE] = "";
 
     if (first_test < 1 || num_tests < 0 || cache_size < 1 || num_pages < 1)
     {
